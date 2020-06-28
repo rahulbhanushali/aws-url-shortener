@@ -1,0 +1,53 @@
+service: urlshortener
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  environment: 
+    SLS_STAGE: ${self:custom.stage}
+  iamRoleStatements:
+    - Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource: <ARN_TO_YOUR_DYNAMODB>
+      Effect: Allow
+
+functions:
+  main:
+    handler: main/index.handler
+    events:
+      - http:
+          path: /
+          method: get
+  create:
+    handler: create/index.handler
+    events:
+      - http:
+          path: /
+          method: post
+  redirect:
+    handler: redirect/index.handler
+    events:
+      - http:
+          path: /{slug}
+          method: get
+
+resources:
+  Resources:
+    LinkDB:
+      Type: "AWS::DynamoDB::Table"
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: slug
+            AttributeType: S
+        KeySchema:
+          - AttributeName: slug
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 2
+          WriteCapacityUnits: 2
+        TableName: "${self:custom.stage}-shortened-urls"
+
